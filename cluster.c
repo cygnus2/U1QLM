@@ -7,6 +7,7 @@
 /* Parameters                      *
  * (nx,ny,nt) : lattice dimension  *
  * j          : coupling constant  *
+ * lam        : potential energy   *
  * beta       : inverse temperature*
  * eps        : Trotter dscrt      *
  * ieq        : equilibrium iter   *
@@ -15,13 +16,13 @@
 
 #define nx 30
 #define ny 30
-#define nt 100
+#define nt 30
 const int nlink=2*nx*ny*nt;
 const int nlink2=nx*ny*nt;
 const int ncube=nx*ny*nt/2;
 
 double p1,p2;
-double j,beta,eps;
+double j,lam,beta,eps;
 int mark[ncube],markl[nlink];
 double hist[31];
 
@@ -44,23 +45,23 @@ int main(){
    int ieq,imeas,iskp;
    /* Set parameters */
    j=1.0;
+   lam = 0.0;
    beta=3.6;
    eps=2.0/((double)nt);
    ieq=100;
    imeas=100;
    iskp=1;
    printf("Cluster Algorithm for the U(1) quantum link model\n");
-   printf("Nx=%d, Ny=%d, Nt=%d, beta=%2.3f\n",nx,ny,nt,beta);
+   printf("Nx=%d, Ny=%d, Nt=%d\n",nx,ny,nt);
+   printf("beta=%2.3f; J=%2.3f; lam=%2.3f\n",beta,j,lam);
 
    /* Define the probabilities */
-   double x,exppx,expmx,sinhx,coshx;
-   x=eps*beta*j;
-   exppx = exp(x);
-   expmx = exp(-x);
-   coshx = (exppx+expmx)/2.0;
-   sinhx = (exppx-expmx)/2.0;
-   p1    = (1.0+expmx)/2.0;
-   p2    = p1/coshx;
+   double x,p1,p2,coshx,sinhx;
+   x     = eps*beta*j
+   coshx = (exp(x)+exp(-x))/2.0;
+   sinhx = (exp(x)-exp(-x))/2.0;
+   p1    = exp(-eps*lam)*coshx;
+   p2    = exp(-eps*lam)*sinhx;
 
    /* initialize random no */
    init_by_array(init,length);
@@ -110,9 +111,9 @@ void neighbours(){
     ilxyt1=il[convert(ix,iy,it)][0];
     ilxyt2=il[convert(ix,iy,it)][1];
 
-/* if-1 starts */
+/* first if starts */
      if(it%2==0){ /* select the even time slices */
-/* if-2 starts */
+/* second if starts */
      if((ix+iy)%2==0){
       /* fwd neighbours */
       neigh[ilxyt1][0][0] = il[convert(ixp1,iy,it)][1];
@@ -177,11 +178,11 @@ void neighbours(){
       neigh[ilxyt2][5][1] = il[convert(ixp1,iy,itm1)][1];
       neigh[ilxyt2][6][1] = il[convert(ix,iy,itm1)][0];
     }
-/* if-2 over */
+/* second if over */
    }
-/* else for if-1 */
+/* else for first if */
    else{
-/* if-3 starts */
+/* third if starts */
     if((ix+iy)%2==1){
       /* fwd neighbours */
       neigh[ilxyt1][0][0] = il[convert(ixp1,iy,it)][1];
@@ -246,9 +247,9 @@ void neighbours(){
       neigh[ilxyt2][5][1] = il[convert(ixp1,iy,itm1)][1];
       neigh[ilxyt2][6][1] = il[convert(ix,iy,itm1)][0];
     }
-/* if-3 over */
+/* third if over */
    }
-/* closing for else corresponding to if-1 */
+/* closing for else corresponding to first if */
 /* next 3 braces closing for the three for loops */
    }
   }
