@@ -18,17 +18,19 @@
  * imeas      : # of measurements  *
  * iskp       : # of iter/meas     */
 
+#define DIM 3
 int LX,LY,LT,VOL,VOL2;
 double p1,p2;
 double j,lam,beta,eps;
 int SEED;
 
 /* pointer variables for neighbours */
-int *neigh[6];
+#define NNBR 10
+int *neigh[NNBR];
 /* checkerboard labeling for sites */
 int *ixc,*iyc,*itc;
 /* Field variables */
-int *ising;
+int *ising,*bond[DIM];
 
 int main(){
 
@@ -37,6 +39,7 @@ int main(){
    extern void neighbours();
    extern void neighchk();
    extern double ran();
+   extern void cluster();
 
    FILE *fptr;
    char st[20];
@@ -59,8 +62,10 @@ int main(){
    iyc   = (int *)malloc(VOL*sizeof(int));
    itc   = (int *)malloc(VOL*sizeof(int));
    ising = (int *)malloc(VOL*sizeof(int));
-   for(i=0;i<=5;i++)
+   for(i=0;i<NNBR;i++)
      neigh[i] = (int *)malloc(VOL*sizeof(int));
+   for(i=0;i<DIM;i++)
+     bond[i] = (int *)malloc(VOL2*sizeof(int));
 
    /* Set parameters */
    j=1.0;
@@ -92,9 +97,14 @@ int main(){
   p1    = exp(-eps*lam)*coshx;
   p2    = exp(-eps*lam)*sinhx;
 
+  /* update */
+  for(i=0;i<ieq;i++) clust();
+   
+
   /* free memory */
   free(ixc); free(iyc); free(itc);
-  for(i=0;i<=5;i++) free(neigh[i]);
+  for(i=0;i<NNBR;i++) free(neigh[i]);
+  for(i=0;i<DIM;i++) free(bond[i]);
   return 0;
  }
 
@@ -103,6 +113,7 @@ double ran(){
   return genrand_real2();
 }
 
+/* returns the checkerboard pointer for site (x,y,z) */
 int convert(int x,int y,int t){
   int n,parity;
   parity = (x+y+t)%2;
@@ -112,6 +123,7 @@ int convert(int x,int y,int t){
   return n;
 }
 
+/* sets the neighbors */
 void neighbours(){
  extern int convert(int,int,int);
  int i,ieven,iodd,parity;
@@ -150,6 +162,10 @@ void neighbours(){
   neigh[3][ieven]=convert(ixm1,iy,it);
   neigh[4][ieven]=convert(ix,iym1,it);
   neigh[5][ieven]=convert(ix,iy,itp1);
+  neigh[6][ieven]=convert(ixp1,iyp1,it);
+  neigh[7][ieven]=convert(ixm1,iyp1,it);
+  neigh[8][ieven]=convert(ixm1,iym1,it);
+  neigh[9][ieven]=convert(ixp1,iym1,it);
   ieven++;
  }
  else{
@@ -162,6 +178,10 @@ void neighbours(){
   neigh[3][VOL2+iodd]=convert(ixm1,iy,it);
   neigh[4][VOL2+iodd]=convert(ix,iym1,it);
   neigh[5][VOL2+iodd]=convert(ix,iy,itp1);
+  neigh[6][VOL2+iodd]=convert(ixp1,iyp1,it);
+  neigh[7][VOL2+iodd]=convert(ixm1,iyp1,it);
+  neigh[8][VOL2+iodd]=convert(ixm1,iym1,it);
+  neigh[9][VOL2+iodd]=convert(ixp1,iym1,it);
   iodd++;
  }
  }}}
@@ -175,3 +195,39 @@ void neighchk(){
     neigh[1][p],neigh[2][p],neigh[3][p],neigh[4][p],neigh[5][p]);
  }
  }
+
+/* checks the occurance of forbidden configurations */
+void chkconfig(){
+  int p;
+  int flag1,flag2;
+  int s0,s1,s2,s3,s4,s5;
+  for(p=0;p<VOL;p++){
+    /* at site p, check if the spins 0 and 5 are the same */
+    s0 = ising[neigh[0][p]];
+    s1 = ising[neigh[5][p]];
+    if(s0 == s1) flag1 = 0; else flag1 = 1;
+    flag2=0;
+    if(flag1==1){
+     if((ising[neigh[2][p]]==ising[neigh[3][p]])&&
+        (ising[neigh[4][p]]==ising[neigh[1][p]])&&
+        (ising[neigh[1][p]]!=ising[neigh[2][p]])) flag2=1;
+     if((flag1==1)&&(flag2==0)) printf("Forbidden config encountered.\n");
+    }
+  }
+}
+
+/* cluster update */
+void clust(){
+ int i;
+ /* make the clusters only in the odd time-slices */
+ /* initialize bonds */
+ for(i=0;i<VOL2;i++){
+    bond[0][i]=bond[1][i]=bond[2][i]=0;
+ }
+ /* cast bonds */
+ for(i=0;i<VOL;i++){
+  if(itc[i]%2==1) continue;
+  
+ }
+
+}
