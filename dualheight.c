@@ -19,10 +19,11 @@
  * iskp       : # of iter/meas     */
 
 #define DIM 3
-int LX,LY,LT,VOL,VOL2;
+int LX,LY,LT,VOL,VOL2,VOL4;
 double p1,p2;
 double j,lam,beta,eps;
 int SEED;
+int nclus;
 
 /* pointer variables for neighbours */
 #define NNBR 10
@@ -30,7 +31,7 @@ int *neigh[NNBR];
 /* checkerboard labeling for sites */
 int *ixc,*iyc,*itc;
 /* Field variables */
-int *ising,*bond[DIM];
+int *ising;
 
 int main(){
 
@@ -56,6 +57,7 @@ int main(){
 
    VOL = LX*LY*LT;
    VOL2= VOL/2;
+   VOL4= VOL/4;
 
    /* allocate memory */
    ixc   = (int *)malloc(VOL*sizeof(int));
@@ -64,8 +66,6 @@ int main(){
    ising = (int *)malloc(VOL*sizeof(int));
    for(i=0;i<NNBR;i++)
      neigh[i] = (int *)malloc(VOL*sizeof(int));
-   for(i=0;i<DIM;i++)
-     bond[i] = (int *)malloc(VOL2*sizeof(int));
 
    /* Set parameters */
    j=1.0;
@@ -90,12 +90,11 @@ int main(){
 
   neighchk();
   /* Define the probabilities */
-  double x,p1,p2,coshx,sinhx;
-  x     = eps*beta*j;
+  double x,coshx,sinhx;
+  x     = eps*j;
   coshx = (exp(x)+exp(-x))/2.0;
   sinhx = (exp(x)-exp(-x))/2.0;
-  p1    = exp(-eps*lam)*coshx;
-  p2    = exp(-eps*lam)*sinhx;
+  p1    = exp(-2*x);
 
   /* update */
   for(i=0;i<ieq;i++) clust();
@@ -104,7 +103,6 @@ int main(){
   /* free memory */
   free(ixc); free(iyc); free(itc);
   for(i=0;i<NNBR;i++) free(neigh[i]);
-  for(i=0;i<DIM;i++) free(bond[i]);
   return 0;
  }
 
@@ -143,9 +141,11 @@ void neighbours(){
 
  parity = (ix+iy+it)%2;
  /* create checkerboard neighbors */
- /*     2
-  *  3  x  1
-  *     4
+ /*  7   2   6
+  *
+  *  3   x   1
+  *
+  *  8   4   9
   * neigh is a double indexed array. The second index tracks the
   * dual site x, while the first index tracks the 6-spin interaction.
   * 1,2,3,4 show the spins on time-slice t as seen above.
@@ -218,16 +218,28 @@ void chkconfig(){
 
 /* cluster update */
 void clust(){
- int i;
- /* make the clusters only in the odd time-slices */
- /* initialize bonds */
- for(i=0;i<VOL2;i++){
-    bond[0][i]=bond[1][i]=bond[2][i]=0;
+ int i,p;
+ int cflag[VOL4];
+ /* note that the variables ising[VOL2+i] with i in [0,VOL2-1] are the */
+ /* ones that carry the flag for the reference configurations          */
+ for(i=VOL2;i<VOL;i++){
+  if((ising[neigh[2][i]]==ising[neigh[3][i]])&&
+     (ising[neigh[4][i]]==ising[neigh[1][i]])&&
+     (ising[neigh[1][i]]!=ising[neigh[2][i]])) ising[i]=1;
+  else ising[i]=0;
  }
- /* cast bonds */
- for(i=0;i<VOL;i++){
-  if(itc[i]%2==1) continue;
-  
+ /* mark spins on even time slices for growing clusters */
+ for(p=0;p<VOL4;p++) cflag[p]=1;
+ /* grow clusters on the even time slices */
+ nclus = 0; 
+ for(i=VOL2;i<VOL;i++){
+   /* first check if the tracking is done on odd slice */
+   if(itc[i]%2==0) continue;
+   /* then check if ref config exists */
+   if(ising[i]==0) {
+     /* if it doesnt, then bind the spins at t+1 and t-1 */
+     if(cflag[neigh[0][i]]==1) list
+   }
  }
-
+ 
 }
