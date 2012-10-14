@@ -95,6 +95,7 @@ int main(){
   coshx = (exp(x)+exp(-x))/2.0;
   sinhx = (exp(x)-exp(-x))/2.0;
   p1    = exp(-2*x);
+  p2    = 1.0 - exp(eps*lam)/coshx;
 
   /* update */
   for(i=0;i<ieq;i++) clust();
@@ -198,7 +199,7 @@ void neighchk(){
 
 /* checks the occurance of forbidden configurations */
 void chkconfig(){
-  int p;
+  int p,i,m;
   int flag1,flag2;
   int s0,s1,s2,s3,s4,s5;
   for(p=0;p<VOL;p++){
@@ -220,8 +221,11 @@ void chkconfig(){
 void clust(){
  int i,p;
  int cflag[VOL4];
+ int bondflag;
+ double ran[1];
  /* note that the variables ising[VOL2+i] with i in [0,VOL2-1] are the */
  /* ones that carry the flag for the reference configurations          */
+ /* reference configuration flags are 1 */
  for(i=VOL2;i<VOL;i++){
   if((ising[neigh[2][i]]==ising[neigh[3][i]])&&
      (ising[neigh[4][i]]==ising[neigh[1][i]])&&
@@ -232,14 +236,101 @@ void clust(){
  for(p=0;p<VOL4;p++) cflag[p]=1;
  /* grow clusters on the even time slices */
  nclus = 0; 
- for(i=VOL2;i<VOL;i++){
+ for(p=VOL2;p<VOL;p++){
    /* first check if the tracking is done on odd slice */
-   if(itc[i]%2==0) continue;
-   /* then check if ref config exists */
-   if(ising[i]==0) {
-     /* if it doesnt, then bind the spins at t+1 and t-1 */
-     if(cflag[neigh[0][i]]==1) list
-   }
- }
+   if(itc[p]%2==0) continue;
+   /* skip if the site already belongs to a cluster */
+   if(cflag[neigh[0][p]]==0) continue;
+   /* otherwise, start building a new cluster */
+   m=0; i=0; list[i]=neigh[0][p]; cflag[neigh[0][p]]=0; nclus++;
+   do{
+    im=list[m]; /* m is the new or the starting site */
+    /* first check the spin on time-slice t+1 wants to bind */
+    imf1=neigh[5][p];
+    if(ising[p]==1) {
+     ranlxd(ran,1); if(ran[0] < p1) bondflag=1; else bondflag=0; }
+    else if(ising[p]==0) bondflag=1; 
+    if((bondflag)&&(cflag[imf1]==1)){
+     i++; list[i]=imf1; /* increase list*/
+     cflag[imf1]=0;  /* unmark spins belonging to cluster */ }
+     /* ============================================== */
+     /* Next check if other spins in the even time-slice want to bind */
+     /* To see if the spins to the right-side of neigh[0] want to bind */
+     imf2=neigh[1][im];
+     if(ising[imf2]=1) bondflag=1; 
+     else { ranlxd(ran,1); if(ran[0] < p2) bongflag=1; else bondflag=0; }
+     r1=neigh[1][imf2];  /* x   r2     x */
+     r2=neigh[2][imf2];  /* im imf2   r1 */
+     r3=neigh[4][imf2];  /* x   r3     x */
+     if((bondflag)&&(cflag[r1]==1)){
+     i++; list[i]=r1; /* increase list*/
+     cflag[r1]=0;  /* unmark spins belonging to cluster */ }
+     if((bondflag)&&(cflag[r2]==1)){
+     i++; list[i]=r2; /* increase list*/
+     cflag[r2]=0;  /* unmark spins belonging to cluster */ }
+     if((bondflag)&&(cflag[r3]==1)){
+     i++; list[i]=r3; /* increase list*/
+     cflag[r3]=0;  /* unmark spins belonging to cluster */ }
+     /* ============================================== */
+     /* To see if the spins to the left-side of neigh[0] want to bind */
+     imf3=neigh[3][im];
+     if(ising[imf3]=1) bondflag=1; 
+     else { ranlxd(ran,1); if(ran[0] < p2) bongflag=1; else bondflag=0; }
+     r1=neigh[2][imf3];  /* x   r1    x */
+     r2=neigh[3][imf3];  /* r2 imf3  im */
+     r3=neigh[4][imf3];  /* x   r3    x */
+     if((bondflag)&&(cflag[r1]==1)){
+     i++; list[i]=r1; /* increase list*/
+     cflag[r1]=0;  /* unmark spins belonging to cluster */ }
+     if((bondflag)&&(cflag[r2]==1)){
+     i++; list[i]=r2; /* increase list*/
+     cflag[r2]=0;  /* unmark spins belonging to cluster */ }
+     if((bondflag)&&(cflag[r3]==1)){
+     i++; list[i]=r3; /* increase list*/
+     cflag[r3]=0;  /* unmark spins belonging to cluster */ }
+     /* ============================================== */
+     /* To see if the spins to the top of neigh[0] want to bind */
+     imf4=neigh[2][im];
+     if(ising[imf4]=1) bondflag=1; 
+     else { ranlxd(ran,1); if(ran[0] < p2) bongflag=1; else bondflag=0; }
+     u1=neigh[1][imf4];  /* x   u2    x */
+     u2=neigh[2][imf4];  /* u3 imf4  u1 */
+     u3=neigh[3][imf4];  /* x   im    x */
+     if((bondflag)&&(cflag[u1]==1)){
+     i++; list[i]=u1; /* increase list*/
+     cflag[u1]=0;  /* unmark spins belonging to cluster */ }
+     if((bondflag)&&(cflag[u2]==1)){
+     i++; list[i]=u2; /* increase list*/
+     cflag[u2]=0;  /* unmark spins belonging to cluster */ }
+     if((bondflag)&&(cflag[u3]==1)){
+     i++; list[i]=u3; /* increase list*/
+     cflag[u3]=0;  /* unmark spins belonging to cluster */ }
+     /* ============================================== */
+     /* To see if the spins to the down of neigh[0] want to bind */
+     imf5=neigh[4][im];
+     if(ising[imf5]=1) bondflag=1; 
+     else { ranlxd(ran,1); if(ran[0] < p2) bongflag=1; else bondflag=0; }
+     d1=neigh[1][imf5];  /* x   im    x */
+     d2=neigh[3][imf5];  /* d2 imf5  d1 */
+     d3=neigh[4][imf5];  /* x   d3    x */
+     if((bondflag)&&(cflag[d1]==1)){
+     i++; list[i]=d1; /* increase list*/
+     cflag[d1]=0;  /* unmark spins belonging to cluster */ }
+     if((bondflag)&&(cflag[d2]==1)){
+     i++; list[i]=d2; /* increase list*/
+     cflag[d2]=0;  /* unmark spins belonging to cluster */ }
+     if((bondflag)&&(cflag[d3]==1)){
+     i++; list[i]=d3; /* increase list*/
+     cflag[d3]=0;  /* unmark spins belonging to cluster */ }
+
+   } 
+
+
+
  
+     if(cflag[neigh[5][p]]==1){
+       m=m+1; i=i+1; list[i]=neigh[5][p]; cflag[neigh[5][p]]=0; nclus++; }
+     }
+   do
+ }
 }
