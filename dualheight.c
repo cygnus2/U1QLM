@@ -259,7 +259,7 @@ void chkconf(){
 
 /* cluster update for even time-slices */
 void clusteven(){
- int i,p,d,m;
+ int i,p,d,m,imf6,imf7;
  int im,imf0,imf1,imf2,imf3,imf4,imf5,fwd,bwd;
  int r1,r2,r3,l1,l2,l3,u1,u2,u3,d1,d2,d3;
  int cflag[VOL2];
@@ -307,6 +307,18 @@ void clusteven(){
     if((bondflag)&&(cflag[imf1]==1)){
      i++; list[i]=imf1; /* increase list*/
      cflag[imf1]=0;  /* unmark spins belonging to cluster */ }
+     /* ============================================== */
+     /* Also check if the spin in time-slice t-3 wants to bind */
+     imf6=neigh[0][im];
+     imf7=neigh[0][imf6];
+    if(imf6<=VOL2) printf("ERROR\n");
+    if(ising[imf6]==1){
+      ranlxd(ran,1); if(ran[0] < p1) bondflag=1; else bondflag=0; }
+    else if(ising[imf6]==0) bondflag=1; 
+    if((bondflag)&&(cflag[imf7]==1)){
+     i++; list[i]=imf7; /* increase list*/
+     cflag[imf7]=0;  /* unmark spins belonging to cluster */ }
+
      /* ============================================== */
      /* Next check if other spins in the time-slice t-1 want to bind */
      /* To see if the spins to the right-side of neigh[0] want to bind */
@@ -394,7 +406,7 @@ void clusteven(){
 
 /* cluster update for odd  time-slices */
 void clustodd(){
- int i,p,d,m;
+ int i,p,d,m,imf6,imf7;
  int im,imf0,imf1,imf2,imf3,imf4,imf5,fwd,bwd;
  int r1,r2,r3,l1,l2,l3,u1,u2,u3,d1,d2,d3;
  int cflag[VOL2];
@@ -436,12 +448,24 @@ void clustodd(){
     /* remember that you are on odd time-slice t-1*/
     imf0=neigh[5][im];
     imf1=neigh[5][imf0];
+    if((imf0<VOL2)&&(imf1>=VOL2)) printf("ERROR. %d %d %d\n",im,imf0,imf1);
     if(ising[imf0]==1) {
      ranlxd(ran,1); if(ran[0] < p1) bondflag=1; else bondflag=0; }
     else if(ising[imf0]==0) bondflag=1; 
     if((bondflag)&&(cflag[imf1]==1)){
      i++; list[i]=imf1; /* increase list*/
      cflag[imf1]=0;  /* unmark spins belonging to cluster */ }
+     /* ============================================== */
+     /* Also check if the spin in time-slice t-3 wants to bind */
+     imf6=neigh[0][im];
+     imf7=neigh[0][imf6];
+    if((imf6<VOL2)&&(imf7>=VOL2)) printf("ERROR. %d %d %d\n",im,imf6,imf7);
+    if(ising[imf6]==1){
+      ranlxd(ran,1); if(ran[0] < p1) bondflag=1; else bondflag=0; }
+    else if(ising[imf6]==0) bondflag=1; 
+    if((bondflag)&&(cflag[imf7]==1)){
+     i++; list[i]=imf7; /* increase list*/
+     cflag[imf7]=0;  /* unmark spins belonging to cluster */ }
      /* ============================================== */
      /* Next check if other spins in the time-slice t-1 want to bind */
      /* To see if the spins to the right-side of neigh[0] want to bind */
