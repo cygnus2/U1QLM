@@ -57,6 +57,18 @@ int main(){
    if(readval == -1) printf("Error\n");
    readval = fscanf(fptr,"%s %d\n",st,&LT);
    if(readval == -1) printf("Error\n");
+   readval = fscanf(fptr,"%s %d\n",st,&SEED);
+   if(readval == -1) printf("Error\n");
+   readval = fscanf(fptr,"%s %d\n",st,&ieq);
+   if(readval == -1) printf("Error\n");
+   readval = fscanf(fptr,"%s %d\n",st,&imeas);
+   if(readval == -1) printf("Error\n");
+   readval = fscanf(fptr,"%s %lf\n",st,&beta);
+   if(readval == -1) printf("Error\n");
+   readval = fscanf(fptr,"%s %lf\n",st,&j);
+   if(readval == -1) printf("Error\n");
+   readval = fscanf(fptr,"%s %lf\n",st,&lam);
+   if(readval == -1) printf("Error\n");
    fclose(fptr);
 
    VOL = LX*LY*LT;
@@ -73,27 +85,21 @@ int main(){
      neigh[i] = (int *)malloc(VOL*sizeof(int));
 
    /* Set parameters */
-   j=1.0;
-   lam = 0.0;
-   beta=3.6;
-   eps=2.0/((double)LT);
-   ieq=50;
-   imeas=100;
+   eps=1.0*beta/((double)LT);
    iskp=1;
-   SEED=743;
 
   /* Initialize ranlux */
   rlxd_init(1,SEED);
 
   /* initialize neighbours */
   neighbours();
+  //neighchk();
 
   printf("Cluster Algorithm for the U(1) quantum link model\n");
   printf("Nx=%d, Ny=%d, Nt=%d\n",LX,LY,LT);
   printf("beta=%2.3f; J=%2.3f; lam=%2.3f\n",beta,j,lam);
   printf("Starting seed=%d\n",SEED);
 
-  neighchk();
   /* Define the probabilities */
   double x,coshx,sinhx;
   x     = eps*j;
@@ -101,6 +107,7 @@ int main(){
   sinhx = (exp(x)-exp(-x))/2.0;
   p1    = exp(-2*x);
   p2    = 1.0 - exp(eps*lam)/coshx;
+  printf("Prob p1: %f;  Prob p2: %f\n",p1,p2);
 
   initconf();
   chkconf();
@@ -108,12 +115,23 @@ int main(){
   /* update */
   for(i=0;i<ieq;i++){
      nclus = 0; 
-     clusteven();
+     //clusteven();
      //clustodd();
      chkconf();
-     printf("Step :%d ; No of clusters: %d\n",i,nclus);
+    // printf("Step :%d ; No of clusters: %d\n",i,nclus);
   }
-   
+  
+  /* measure */ 
+  fptr=fopen("out.dat","w");
+  for(i=0;i<imeas;i++){
+   nclus = 0;
+   clusteven();
+   //printf("Before going to update odd: %d\n",nclus);
+   clustodd();
+   chkconf();
+   fprintf(fptr,"%d\n",nclus);
+  }
+  fclose(fptr);
 
   /* free memory */
   free(ixc); free(iyc); free(itc);
@@ -224,15 +242,17 @@ void chkconf(){
   for(p=VOL2;p<VOL;p++){
     if(ising[p]<0) printf("Wrong cluster has been grown.\n");
     /* at site p, check if the spins 0 and 5 are the same */
+    flag1 = 0;
     s0 = ising[neigh[0][p]];
-    s1 = ising[neigh[5][p]];
-    if(s0 == s1) flag1 = 0; else flag1 = 1;
-    flag2=0;
-    if(flag1==1){
-     if((ising[neigh[2][p]]==ising[neigh[3][p]])&&
-        (ising[neigh[4][p]]==ising[neigh[1][p]])&&
-        (ising[neigh[1][p]]!=ising[neigh[2][p]])) flag2=1;
-     if((flag1==1)&&(flag2==0)) printf("Forbidden config encountered. Flag at = %d\n",p);
+    s5 = ising[neigh[5][p]];
+    s1 = ising[neigh[1][p]];
+    s2 = ising[neigh[2][p]];
+    s3 = ising[neigh[3][p]];
+    s4 = ising[neigh[4][p]];
+    flag2 = 0;
+    if(s0 != s5) {
+     if((s2 == s3) && (s4 == s1) && (s1 != s2) && (s3 != s4)) flag2=1;
+     if(flag2==0) printf("Forbidden config encountered. Flag at = %d. %d %d %d %d\n",p,s2,s3,s4,s1);
     }
   }
 }
@@ -240,9 +260,9 @@ void chkconf(){
 /* cluster update for even time-slices */
 void clusteven(){
  int i,p,d,m;
- int im,imf1,imf2,imf3,imf4,imf5;
+ int im,imf0,imf1,imf2,imf3,imf4,imf5,fwd,bwd;
  int r1,r2,r3,l1,l2,l3,u1,u2,u3,d1,d2,d3;
- int cflag[VOL4];
+ int cflag[VOL2];
  int bondflag;
  double ran[1];
  /* note that the variables ising[VOL2+i] with i in [0,VOL2-1] are the */
@@ -278,10 +298,12 @@ void clusteven(){
     im=list[m]; /* m is the new or the starting site */
     /* first check the spin on time-slice t+1 wants to bind */
     /* remember that you are on even time-slice t-1*/
-    imf1=neigh[5][neigh[5][im]];
-    if(ising[p]==1) {
+    imf0=neigh[5][im];
+    imf1=neigh[5][imf0];
+    if(imf0<=VOL2) printf("ERROR\n");
+    if(ising[imf0]==1) {
      ranlxd(ran,1); if(ran[0] < p1) bondflag=1; else bondflag=0; }
-    else if(ising[p]==0) bondflag=1; 
+    else if(ising[imf0]==0) bondflag=1; 
     if((bondflag)&&(cflag[imf1]==1)){
      i++; list[i]=imf1; /* increase list*/
      cflag[imf1]=0;  /* unmark spins belonging to cluster */ }
@@ -289,7 +311,8 @@ void clusteven(){
      /* Next check if other spins in the time-slice t-1 want to bind */
      /* To see if the spins to the right-side of neigh[0] want to bind */
      imf2=neigh[1][im];
-     if(ising[imf2]==1) bondflag=1; 
+     fwd=neigh[0][imf2]; bwd=neigh[5][imf2];
+     if(ising[fwd]!=ising[bwd]) bondflag=1;
      else { ranlxd(ran,1); if(ran[0] < p2) bondflag=1; else bondflag=0; }
      r1=neigh[1][imf2];  /* x   r2     x */
      r2=neigh[2][imf2];  /* im imf2   r1 */
@@ -306,7 +329,8 @@ void clusteven(){
      /* ============================================== */
      /* To see if the spins to the left-side of neigh[0] want to bind */
      imf3=neigh[3][im];
-     if(ising[imf3]==1) bondflag=1; 
+     fwd=neigh[0][imf3]; bwd=neigh[5][imf3];
+     if(ising[fwd]!=ising[bwd]) bondflag=1;
      else { ranlxd(ran,1); if(ran[0] < p2) bondflag=1; else bondflag=0; }
      l1=neigh[2][imf3];  /* x   l1    x */
      l2=neigh[3][imf3];  /* l2 imf3  im */
@@ -323,7 +347,8 @@ void clusteven(){
      /* ============================================== */
      /* To see if the spins to the top of neigh[0] want to bind */
      imf4=neigh[2][im];
-     if(ising[imf4]==1) bondflag=1; 
+     fwd=neigh[0][imf4]; bwd=neigh[5][imf4];
+     if(ising[fwd]!=ising[bwd]) bondflag=1;
      else { ranlxd(ran,1); if(ran[0] < p2) bondflag=1; else bondflag=0; }
      u1=neigh[1][imf4];  /* x   u2    x */
      u2=neigh[2][imf4];  /* u3 imf4  u1 */
@@ -340,7 +365,8 @@ void clusteven(){
      /* ============================================== */
      /* To see if the spins to the down of neigh[0] want to bind */
      imf5=neigh[4][im];
-     if(ising[imf5]==1) bondflag=1; 
+     fwd=neigh[0][imf5]; bwd=neigh[5][imf5];
+     if(ising[fwd]!=ising[bwd]) bondflag=1;
      else { ranlxd(ran,1); if(ran[0] < p2) bondflag=1; else bondflag=0; }
      d1=neigh[1][imf5];  /* x   im    x */
      d2=neigh[3][imf5];  /* d2 imf5  d1 */
@@ -366,10 +392,10 @@ void clusteven(){
  }
 }
 
-/* cluster update for even time-slices */
+/* cluster update for odd  time-slices */
 void clustodd(){
  int i,p,d,m;
- int im,imf1,imf2,imf3,imf4,imf5;
+ int im,imf0,imf1,imf2,imf3,imf4,imf5,fwd,bwd;
  int r1,r2,r3,l1,l2,l3,u1,u2,u3,d1,d2,d3;
  int cflag[VOL2];
  int bondflag;
@@ -382,7 +408,7 @@ void clustodd(){
      (ising[neigh[4][i]]==ising[neigh[1][i]])&&
      (ising[neigh[1][i]]!=ising[neigh[2][i]])) ising[i]=1;
   else ising[i]=0;
- }
+ } 
 
  /* mark spins on odd time slices for growing clusters */
  /* spins on even-time slices are marked as 0; so that it will never join to a cluster */
@@ -408,10 +434,11 @@ void clustodd(){
     im=list[m]; /* m is the new or the starting site */
     /* first check the spin on time-slice t+1 wants to bind */
     /* remember that you are on odd time-slice t-1*/
-    imf1=neigh[5][neigh[5][im]];
-    if(ising[p]==1) {
+    imf0=neigh[5][im];
+    imf1=neigh[5][imf0];
+    if(ising[imf0]==1) {
      ranlxd(ran,1); if(ran[0] < p1) bondflag=1; else bondflag=0; }
-    else if(ising[p]==0) bondflag=1; 
+    else if(ising[imf0]==0) bondflag=1; 
     if((bondflag)&&(cflag[imf1]==1)){
      i++; list[i]=imf1; /* increase list*/
      cflag[imf1]=0;  /* unmark spins belonging to cluster */ }
@@ -419,7 +446,8 @@ void clustodd(){
      /* Next check if other spins in the time-slice t-1 want to bind */
      /* To see if the spins to the right-side of neigh[0] want to bind */
      imf2=neigh[1][im];
-     if(ising[imf2]==1) bondflag=1; 
+     fwd=neigh[0][imf2]; bwd=neigh[5][imf2];
+     if(ising[fwd]!=ising[bwd]) bondflag=1;
      else { ranlxd(ran,1); if(ran[0] < p2) bondflag=1; else bondflag=0; }
      r1=neigh[1][imf2];  /* x   r2     x */
      r2=neigh[2][imf2];  /* im imf2   r1 */
@@ -436,7 +464,8 @@ void clustodd(){
      /* ============================================== */
      /* To see if the spins to the left-side of neigh[0] want to bind */
      imf3=neigh[3][im];
-     if(ising[imf3]==1) bondflag=1; 
+     fwd=neigh[0][imf3]; bwd=neigh[5][imf3];
+     if(ising[fwd]!=ising[bwd]) bondflag=1;
      else { ranlxd(ran,1); if(ran[0] < p2) bondflag=1; else bondflag=0; }
      l1=neigh[2][imf3];  /* x   l1    x */
      l2=neigh[3][imf3];  /* l2 imf3  im */
@@ -453,7 +482,8 @@ void clustodd(){
      /* ============================================== */
      /* To see if the spins to the top of neigh[0] want to bind */
      imf4=neigh[2][im];
-     if(ising[imf4]==1) bondflag=1; 
+     fwd=neigh[0][imf4]; bwd=neigh[5][imf4];
+     if(ising[fwd]!=ising[bwd]) bondflag=1;
      else { ranlxd(ran,1); if(ran[0] < p2) bondflag=1; else bondflag=0; }
      u1=neigh[1][imf4];  /* x   u2    x */
      u2=neigh[2][imf4];  /* u3 imf4  u1 */
@@ -470,7 +500,8 @@ void clustodd(){
      /* ============================================== */
      /* To see if the spins to the down of neigh[0] want to bind */
      imf5=neigh[4][im];
-     if(ising[imf5]==1) bondflag=1; 
+     fwd=neigh[0][imf5]; bwd=neigh[5][imf5];
+     if(ising[fwd]!=ising[bwd]) bondflag=1;
      else { ranlxd(ran,1); if(ran[0] < p2) bondflag=1; else bondflag=0; }
      d1=neigh[1][imf5];  /* x   im    x */
      d2=neigh[3][imf5];  /* d2 imf5  d1 */
