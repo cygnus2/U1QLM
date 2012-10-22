@@ -115,10 +115,9 @@ int main(){
   /* update */
   for(i=0;i<ieq;i++){
      nclus = 0; 
-     //clusteven();
-     //clustodd();
+     clusteven();
+     clustodd();
      chkconf();
-    // printf("Step :%d ; No of clusters: %d\n",i,nclus);
   }
   
   /* measure */ 
@@ -126,7 +125,6 @@ int main(){
   for(i=0;i<imeas;i++){
    nclus = 0;
    clusteven();
-   //printf("Before going to update odd: %d\n",nclus);
    clustodd();
    chkconf();
    fprintf(fptr,"%d\n",nclus);
