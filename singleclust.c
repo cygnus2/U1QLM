@@ -282,14 +282,16 @@ void clusteven(){
  }
 
  /* select a starting site on an even time-slice for growing cluster */
+ do{
  ranlxd(ran,1);
- p=VOL*ran[1];
- if(itc[p]%2==1) p=neigh[5][p];
+ p=VOL2*ran[0]; }
+ while((itc[p]%2==1));
+ if(p>=VOL2) {printf("Wrong choice for even. %d Exiting. \n",p); exit(0); }
 
  /* check pointer */
  if(cflag[p]==0) printf("ERROR in cluster pointer.\n");
  /* otherwise, start building a new cluster */
- m=0; i=0; list[i]=p; cflag[p]=0; clusevn++;
+ m=0; i=0; list[i]=p; cflag[p]=0; 
  do{
     im=list[m]; /* m is the new or the starting site */
     /* first check the spin on time-slice t+2 wants to bind */
@@ -394,6 +396,8 @@ void clusteven(){
    for(d=0;d<=i;d++) if(list[d]>=VOL2) printf("Cluster grown in Flag.\n");
    /* flip the cluster */
    for(d=0;d<=i;d++) ising[list[d]] = -ising[list[d]];
+   /* size of the cluster on even time-slice */
+   clusevn = i+1;
 }
 
 /* cluster update for odd  time-slices */
@@ -422,14 +426,16 @@ void clustodd(){
  }
 
  /* select a starting site on an odd time-slice for growing cluster */
+ do{
  ranlxd(ran,1);
- p=VOL*ran[1];
- if(itc[p]%2==0) p=neigh[5][p];
+ p=VOL2*ran[0]; }
+ while((itc[p]%2==0));
+ if(p>=VOL2) {printf("Wrong choice for odd. %d. Exiting. \n",p); exit(0); }
 
  /* check pointer */
  if(cflag[p]==0) printf("ERROR in cluster pointer.\n");
  /* otherwise, start building a new cluster */
- m=0; i=0; list[i]=p; cflag[p]=0; clusodd++;
+ m=0; i=0; list[i]=p; cflag[p]=0;
  do{
     im=list[m]; /* m is the new or the starting site */
     /* first check the spin on time-slice t+2 wants to bind */
@@ -534,4 +540,7 @@ void clustodd(){
 
    /* flip the cluster */
     for(d=0;d<=i;d++) ising[list[d]] = -ising[list[d]];
+
+   /* size of the cluster on odd-sublattice */
+    clusodd = i+1;
 }

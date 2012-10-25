@@ -23,7 +23,7 @@ int LX,LY,LT,VOL,VOL2,VOL4;
 double p1,p2;
 double j,lam,beta,eps;
 int SEED;
-int nclus;
+int nclusevn,nclusodd,nclus;
 
 /* pointer variables for neighbours */
 #define NNBR 10
@@ -114,8 +114,9 @@ int main(){
 
   /* update */
   for(i=0;i<ieq;i++){
-     nclus = 0; 
+     nclusevn = 0; 
      clusteven();
+     nclusodd = 0; 
      clustodd();
      chkconf();
   }
@@ -123,11 +124,13 @@ int main(){
   /* measure */ 
   fptr=fopen("out.dat","w");
   for(i=0;i<imeas;i++){
-   nclus = 0;
+   nclusevn = 0;
    clusteven();
+   nclusodd = 0;
    clustodd();
+   nclus = nclusevn + nclusodd;
    chkconf();
-   fprintf(fptr,"%d\n",nclus);
+   fprintf(fptr,"%d %d %d\n",nclusevn,nclusodd,nclus);
   }
   fclose(fptr);
 
@@ -291,7 +294,7 @@ void clusteven(){
    /* skip if the site already belongs to a cluster */
    if(cflag[neigh[0][p]]==0) continue;
    /* otherwise, start building a new cluster */
-   m=0; i=0; list[i]=neigh[0][p]; cflag[neigh[0][p]]=0; nclus++;
+   m=0; i=0; list[i]=neigh[0][p]; cflag[neigh[0][p]]=0; nclusevn++;
    do{
     im=list[m]; /* m is the new or the starting site */
     /* first check the spin on time-slice t+1 wants to bind */
@@ -439,7 +442,7 @@ void clustodd(){
    /* skip if the site already belongs to a cluster */
    if(cflag[neigh[0][p]]==0) continue;
    /* otherwise, start building a new cluster */
-   m=0; i=0; list[i]=neigh[0][p]; cflag[neigh[0][p]]=0; nclus++;
+   m=0; i=0; list[i]=neigh[0][p]; cflag[neigh[0][p]]=0; nclusodd++;
    do{
     im=list[m]; /* m is the new or the starting site */
     /* first check the spin on time-slice t+1 wants to bind */
