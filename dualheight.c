@@ -24,6 +24,7 @@ double p1,p2;
 double j,lam,beta,eps;
 int SEED;
 int nclusevn,nclusodd,nclus;
+double nclusevsq,nclusodsq;
 
 /* pointer variables for neighbours */
 #define NNBR 10
@@ -114,23 +115,25 @@ int main(){
 
   /* update */
   for(i=0;i<ieq;i++){
-     nclusevn = 0; 
+     nclusevn = 0; nclusevsq=0;
      clusteven();
-     nclusodd = 0; 
+     nclusodd = 0; nclusodsq=0;
      clustodd();
      chkconf();
   }
   
   /* measure */ 
-  fptr=fopen("out.dat","w");
+  fptr=fopen("multi.dat","w");
   for(i=0;i<imeas;i++){
-   nclusevn = 0;
+   nclusevn = 0; nclusevsq=0;
    clusteven();
-   nclusodd = 0;
+   nclusevsq = nclusevsq/VOL2;
+   nclusodd = 0; nclusodsq=0;
    clustodd();
+   nclusodsq = nclusodsq/VOL2;
    nclus = nclusevn + nclusodd;
    chkconf();
-   fprintf(fptr,"%d %d %d\n",nclusevn,nclusodd,nclus);
+   fprintf(fptr,"%d %d %d %lf %lf\n",nclusevn,nclusodd,nclus,nclusevsq,nclusodsq);
   }
   fclose(fptr);
 
@@ -397,6 +400,8 @@ void clusteven(){
    } while(m<=i);
    /* check if the list only contains genuine spins */
    for(d=0;d<=i;d++) if(list[d]>=VOL2) printf("Cluster grown in Flag.\n");
+   /* size */
+   nclusevsq += (i+1)*(i+1);
    /* flip the cluster with a 50% probability */
    ranlxd(ran,1);
    if(ran[0]<0.5){
@@ -544,6 +549,9 @@ void clustodd(){
    } while(m<=i);
    /* check if the list only contains genuine spins */
    for(d=0;d<=i;d++) if(list[d]>=VOL2) printf("Cluster grown in Flag.\n");
+
+   /* size */
+   nclusodsq += (i+1)*(i+1);
 
    /* flip the cluster with a 50% probability */
    ranlxd(ran,1);
