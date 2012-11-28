@@ -24,6 +24,8 @@ double p1,p2;
 double j,lam,beta,eps;
 int SEED;
 int clusevn,clusodd;
+int mA,mB;
+int refA,refB;
 
 /* pointer variables for neighbours */
 #define NNBR 10
@@ -125,12 +127,12 @@ int main(){
   /* measure */ 
   fptr=fopen("single.dat","w");
   for(i=0;i<imeas;i++){
-   clusevn = 0;
+   clusevn = 0; mA=0;
    clusteven();
-   clusodd = 0;
+   clusodd = 0; mB=0;
    clustodd();
    chkconf();
-   fprintf(fptr,"%d %d\n",clusevn,clusodd);
+   fprintf(fptr,"%d %d %d %d\n",clusevn,clusodd,mA,mB);
   }
   fclose(fptr);
 
@@ -238,22 +240,27 @@ void neighchk(){
 /* checks the occurance of forbidden configurations */
 void chkconf(){
   int p,i,m;
-  int flag1,flag2;
+  int flag1;
   int s0,s1,s2,s3,s4,s5;
   for(p=VOL2;p<VOL;p++){
-    if(ising[p]<0) printf("Wrong cluster has been grown.\n");
+    if((ising[p] != 0) && (ising[p] != 2)) printf("Wrong cluster has been grown.\n");
     /* at site p, check if the spins 0 and 5 are the same */
-    flag1 = 0;
     s0 = ising[neigh[0][p]];
     s5 = ising[neigh[5][p]];
     s1 = ising[neigh[1][p]];
     s2 = ising[neigh[2][p]];
     s3 = ising[neigh[3][p]];
     s4 = ising[neigh[4][p]];
-    flag2 = 0;
+    flag1 = 0;
+    if((s0 != -1) && (s0 != 1)) printf("Error at %d\n",s0);
+    if((s1 != -1) && (s1 != 1)) printf("Error at %d\n",s1);
+    if((s2 != -1) && (s2 != 1)) printf("Error at %d\n",s2);
+    if((s3 != -1) && (s3 != 1)) printf("Error at %d\n",s3);
+    if((s4 != -1) && (s4 != 1)) printf("Error at %d\n",s4);
+    if((s5 != -1) && (s5 != 1)) printf("Error at %d\n",s5);
     if(s0 != s5) {
-     if((s2 == s3) && (s4 == s1) && (s1 != s2)) flag2=1;
-     if(flag2==0) printf("Forbidden config encountered. Flag at = %d. %d %d %d %d\n",p,s2,s3,s4,s1);
+     if((s2 == s3) && (s4 == s1) && (s1 != s2)) flag1=1;
+     if(flag1==0) printf("Forbidden config encountered. Flag at = %d. %d %d %d %d\n",p,s2,s3,s4,s1);
     }
   }
 }
@@ -263,142 +270,176 @@ void clusteven(){
  int i,p,d,m,imf6,imf7;
  int im,imf0,imf1,imf2,imf3,imf4,imf5,fwd,bwd;
  int r1,r2,r3,l1,l2,l3,u1,u2,u3,d1,d2,d3;
- int cflag[VOL2];
+ int cflag[VOL];
  int bondflag;
+ int sx,sy;
  double ran[1];
  /* note that the variables ising[VOL2+i] with i in [0,VOL2-1] are the */
  /* ones that carry the flag for the reference configurations          */
- /* reference configuration flags are 1 */
+ /* reference configuration flags are 2 */
+ /* if there is no ref config, then ising[i] is set to zero */
  for(i=VOL2;i<VOL;i++){
   if((ising[neigh[2][i]]==ising[neigh[3][i]])&&
      (ising[neigh[4][i]]==ising[neigh[1][i]])&&
-     (ising[neigh[1][i]]!=ising[neigh[2][i]])) ising[i]=1;
+     (ising[neigh[1][i]]!=ising[neigh[2][i]])) ising[i]=2;
   else ising[i]=0;
  }
  /* mark spins on even time slices for growing clusters */
  /* spins on odd-time slices are marked as 0; so that it will never join to a cluster */
  for(p=0;p<VOL2;p++) {
-  if(itc[p]%2==0) cflag[p]=1;
-  if(itc[p]%2==1) cflag[p]=0;
+  if((itc[p]%2)==0) cflag[p]=1;
+  if((itc[p]%2)==1) cflag[p]=0;
  }
+
+ /* serve as flags for checking interactions while cluster building */
+ for(p=VOL2;p<VOL;p++) cflag[p]=1;
 
  /* select a starting site on an even time-slice for growing cluster */
  do{
  ranlxd(ran,1);
  p=VOL2*ran[0]; }
- while((itc[p]%2==1));
- if(p>=VOL2) {printf("Wrong choice for even. %d Exiting. \n",p); exit(0); }
+ while((itc[p]%2) == 1);
+ if(p>=VOL2) {printf("Wrong choice for starting seed. %d Exiting. \n",p); exit(0); }
 
  /* check pointer */
  if(cflag[p]==0) printf("ERROR in cluster pointer.\n");
  /* otherwise, start building a new cluster */
  m=0; i=0; list[i]=p; cflag[p]=0; 
  do{
-    im=list[m]; /* m is the new or the starting site */
+    im=list[m]; /* im=p is the new or the starting site */
     /* first check the spin on time-slice t+2 wants to bind */
     /* remember that you are on even time-slice t */
     imf0=neigh[5][im];
     imf1=neigh[5][imf0];
-    if(imf0<=VOL2) printf("ERROR\n");
-    if(ising[imf0]==1) {
-     ranlxd(ran,1); if(ran[0] < p1) bondflag=1; else bondflag=0; }
+    if(imf0 < VOL2) printf("ERROR\n");
+    if(cflag[imf0]==1){
+    bondflag=0;
+    if(ising[imf0]==2){ ranlxd(ran,1); if(ran[0] < p1) bondflag=1; }
     else if(ising[imf0]==0) bondflag=1; 
     if((bondflag)&&(cflag[imf1]==1)){
-     i++; list[i]=imf1; /* increase list*/
-     cflag[imf1]=0;  /* unmark spins belonging to cluster */ }
-     /* ============================================== */
-     /* Also check if the spin in time-slice t-2 wants to bind */
+       i++; list[i]=imf1; /* increase list*/
+       cflag[imf1]=0;  /* unmark spins belonging to cluster */ }
+       cflag[imf0]=0;  /* unmark the interaction */
+     }
+    /* ============================================== */
+    /* Also check if the spin in time-slice t-2 wants to bind */
     imf6=neigh[0][im];
     imf7=neigh[0][imf6];
-    if(imf6<=VOL2) printf("ERROR\n");
-    if(ising[imf6]==1){
-      ranlxd(ran,1); if(ran[0] < p1) bondflag=1; else bondflag=0; }
+    if(imf6 < VOL2) printf("ERROR\n");
+    if(cflag[imf6]==1){
+    bondflag=0;
+    if(ising[imf6]==2){ ranlxd(ran,1); if(ran[0] < p1) bondflag=1; }
     else if(ising[imf6]==0) bondflag=1; 
     if((bondflag)&&(cflag[imf7]==1)){
-     i++; list[i]=imf7; /* increase list*/
-     cflag[imf7]=0;  /* unmark spins belonging to cluster */ }
-
-     /* ============================================== */
-     /* Next check if other spins in the time-slice t want to bind */
-     /* To see if the spins to the right-side of p want to bind */
-     imf2=neigh[1][im];
-     fwd=neigh[0][imf2]; bwd=neigh[5][imf2];
-     if(ising[fwd]!=ising[bwd]) bondflag=1;
-     else { ranlxd(ran,1); if(ran[0] < p2) bondflag=1; else bondflag=0; }
-     r1=neigh[1][imf2];  /* x   r2     x */
-     r2=neigh[2][imf2];  /* im imf2   r1 */
-     r3=neigh[4][imf2];  /* x   r3     x */
-     if((bondflag)&&(cflag[r1]==1)){
-     i++; list[i]=r1; /* increase list*/
-     cflag[r1]=0;  /* unmark spins belonging to cluster */ }
-     if((bondflag)&&(cflag[r2]==1)){
-     i++; list[i]=r2; /* increase list*/
-     cflag[r2]=0;  /* unmark spins belonging to cluster */ }
-     if((bondflag)&&(cflag[r3]==1)){
-     i++; list[i]=r3; /* increase list*/
-     cflag[r3]=0;  /* unmark spins belonging to cluster */ }
-     /* ============================================== */
-     /* To see if the spins to the left-side of p want to bind */
-     imf3=neigh[3][im];
-     fwd=neigh[0][imf3]; bwd=neigh[5][imf3];
-     if(ising[fwd]!=ising[bwd]) bondflag=1;
-     else { ranlxd(ran,1); if(ran[0] < p2) bondflag=1; else bondflag=0; }
-     l1=neigh[2][imf3];  /* x   l1    x */
-     l2=neigh[3][imf3];  /* l2 imf3  im */
-     l3=neigh[4][imf3];  /* x   l3    x */
-     if((bondflag)&&(cflag[l1]==1)){
-     i++; list[i]=l1; /* increase list*/
-     cflag[l1]=0;  /* unmark spins belonging to cluster */ }
-     if((bondflag)&&(cflag[l2]==1)){
-     i++; list[i]=l2; /* increase list*/
-     cflag[l2]=0;  /* unmark spins belonging to cluster */ }
-     if((bondflag)&&(cflag[l3]==1)){
-     i++; list[i]=l3; /* increase list*/
-     cflag[l3]=0;  /* unmark spins belonging to cluster */ }
-     /* ============================================== */
-     /* To see if the spins to the top of p want to bind */
-     imf4=neigh[2][im];
-     fwd=neigh[0][imf4]; bwd=neigh[5][imf4];
-     if(ising[fwd]!=ising[bwd]) bondflag=1;
-     else { ranlxd(ran,1); if(ran[0] < p2) bondflag=1; else bondflag=0; }
-     u1=neigh[1][imf4];  /* x   u2    x */
-     u2=neigh[2][imf4];  /* u3 imf4  u1 */
-     u3=neigh[3][imf4];  /* x   im    x */
-     if((bondflag)&&(cflag[u1]==1)){
-     i++; list[i]=u1; /* increase list*/
-     cflag[u1]=0;  /* unmark spins belonging to cluster */ }
-     if((bondflag)&&(cflag[u2]==1)){
-     i++; list[i]=u2; /* increase list*/
-     cflag[u2]=0;  /* unmark spins belonging to cluster */ }
-     if((bondflag)&&(cflag[u3]==1)){
-     i++; list[i]=u3; /* increase list*/
-     cflag[u3]=0;  /* unmark spins belonging to cluster */ }
-     /* ============================================== */
-     /* To see if the spins to the down of p want to bind */
-     imf5=neigh[4][im];
-     fwd=neigh[0][imf5]; bwd=neigh[5][imf5];
-     if(ising[fwd]!=ising[bwd]) bondflag=1;
-     else { ranlxd(ran,1); if(ran[0] < p2) bondflag=1; else bondflag=0; }
-     d1=neigh[1][imf5];  /* x   im    x */
-     d2=neigh[3][imf5];  /* d2 imf5  d1 */
-     d3=neigh[4][imf5];  /* x   d3    x */
-     if((bondflag)&&(cflag[d1]==1)){
-     i++; list[i]=d1; /* increase list*/
-     cflag[d1]=0;  /* unmark spins belonging to cluster */ }
-     if((bondflag)&&(cflag[d2]==1)){
-     i++; list[i]=d2; /* increase list*/
-     cflag[d2]=0;  /* unmark spins belonging to cluster */ }
-     if((bondflag)&&(cflag[d3]==1)){
-     i++; list[i]=d3; /* increase list*/
-     cflag[d3]=0;  /* unmark spins belonging to cluster */ }
-     m++;
+       i++; list[i]=imf7; /* increase list*/
+       cflag[imf7]=0;  /* unmark spins belonging to cluster */ }
+       cflag[imf6]=0;  /* unmark the interaction */
+    }
+    /* ============================================== */
+    /* Next check if other spins in the time-slice t want to bind */
+    /* To see if the spins to the right-side of p want to bind */
+    imf2=neigh[1][im];
+    if(cflag[imf2]==1){
+      fwd=neigh[0][imf2]; bwd=neigh[5][imf2];
+      bondflag=0;
+      if(ising[fwd]!=ising[bwd]) bondflag=1;
+      else { if(ising[imf2]==2) { ranlxd(ran,1); if(ran[0] < p2) bondflag=1;}}
+      r1=neigh[1][imf2];  /* x   r2     x */
+      r2=neigh[2][imf2];  /* im imf2   r1 */
+      r3=neigh[4][imf2];  /* x   r3     x */
+      if((bondflag)&&(cflag[r1]==1)){
+       i++; list[i]=r1; /* increase list*/
+       cflag[r1]=0;  /* unmark spins belonging to cluster */ }
+      if((bondflag)&&(cflag[r2]==1)){
+       i++; list[i]=r2; /* increase list*/
+       cflag[r2]=0;  /* unmark spins belonging to cluster */ }
+      if((bondflag)&&(cflag[r3]==1)){
+       i++; list[i]=r3; /* increase list*/
+       cflag[r3]=0;  /* unmark spins belonging to cluster */ }
+      cflag[imf2]=0; /* unmark the interaction */
+    }
+    /* ============================================== */
+    /* To see if the spins to the left-side of p want to bind */
+    imf3=neigh[3][im];
+    if(cflag[imf3]==1){
+      fwd=neigh[0][imf3]; bwd=neigh[5][imf3];
+      bondflag=0;
+      if(ising[fwd]!=ising[bwd]) bondflag=1;
+      else { if(ising[imf3]==2) { ranlxd(ran,1); if(ran[0] < p2) bondflag=1;}}
+      l1=neigh[2][imf3];  /* x   l1    x */
+      l2=neigh[3][imf3];  /* l2 imf3  im */
+      l3=neigh[4][imf3];  /* x   l3    x */
+      if((bondflag)&&(cflag[l1]==1)){
+       i++; list[i]=l1; /* increase list*/
+       cflag[l1]=0;  /* unmark spins belonging to cluster */ }
+      if((bondflag)&&(cflag[l2]==1)){
+       i++; list[i]=l2; /* increase list*/
+       cflag[l2]=0;  /* unmark spins belonging to cluster */ }
+      if((bondflag)&&(cflag[l3]==1)){
+       i++; list[i]=l3; /* increase list*/
+       cflag[l3]=0;  /* unmark spins belonging to cluster */ }
+      cflag[imf3]=0;       /* unmark the interaction */
+    }
+    /* ============================================== */
+    /* To see if the spins to the top of p want to bind */
+    imf4=neigh[2][im];
+    if(cflag[imf4]==1){
+      fwd=neigh[0][imf4]; bwd=neigh[5][imf4];
+      bondflag=0;
+      if(ising[fwd]!=ising[bwd]) bondflag=1;
+      else { if(ising[imf4]==2) { ranlxd(ran,1); if(ran[0] < p2) bondflag=1;}}
+      u1=neigh[1][imf4];  /* x   u2    x */
+      u2=neigh[2][imf4];  /* u3 imf4  u1 */
+      u3=neigh[3][imf4];  /* x   im    x */
+      if((bondflag)&&(cflag[u1]==1)){
+       i++; list[i]=u1; /* increase list*/
+       cflag[u1]=0;  /* unmark spins belonging to cluster */ }
+      if((bondflag)&&(cflag[u2]==1)){
+       i++; list[i]=u2; /* increase list*/
+       cflag[u2]=0;  /* unmark spins belonging to cluster */ }
+      if((bondflag)&&(cflag[u3]==1)){
+       i++; list[i]=u3; /* increase list*/
+       cflag[u3]=0;  /* unmark spins belonging to cluster */ }
+      cflag[imf4]=0; /* unmark the interaction */
+    }
+    /* ============================================== */
+    /* To see if the spins to the down of p want to bind */
+    imf5=neigh[4][im];
+    if(cflag[imf5]==1){
+      fwd=neigh[0][imf5]; bwd=neigh[5][imf5];
+      bondflag=0;
+      if(ising[fwd]!=ising[bwd]) bondflag=1;
+      else { if(ising[imf5]==2) { ranlxd(ran,1); if(ran[0] < p2) bondflag=1;}}
+      d1=neigh[1][imf5];  /* x   im    x */
+      d2=neigh[3][imf5];  /* d2 imf5  d1 */
+      d3=neigh[4][imf5];  /* x   d3    x */
+      if((bondflag)&&(cflag[d1]==1)){
+       i++; list[i]=d1; /* increase list*/
+       cflag[d1]=0;  /* unmark spins belonging to cluster */ }
+      if((bondflag)&&(cflag[d2]==1)){
+       i++; list[i]=d2; /* increase list*/
+       cflag[d2]=0;  /* unmark spins belonging to cluster */ }
+      if((bondflag)&&(cflag[d3]==1)){
+       i++; list[i]=d3; /* increase list*/
+       cflag[d3]=0;  /* unmark spins belonging to cluster */ }
+      cflag[imf5]=0; /* unmark the interaction */
+    }
+    m++;
    } while(m<=i);
    /* check if the list only contains genuine spins */
    for(d=0;d<=i;d++) if(list[d]>=VOL2) printf("Cluster grown in Flag.\n");
+   /* decide orientation wrt to the reference config */
+   sx=ixc[list[0]]; sy=iyc[list[0]];
+   refA = ( ((sx-sy)%4)==0 ) ? 1:-1;
+   //if((sx-sy)%4==0) refA=1;
+   //else refA=-1;
+   if(ising[list[0]]==refA) refA=1;
+   else refA=-1;
    /* flip the cluster */
    for(d=0;d<=i;d++) ising[list[d]] = -ising[list[d]];
    /* size of the cluster on even time-slice */
    clusevn = i+1;
+   mA = refA*clusevn;
 }
 
 /* cluster update for odd  time-slices */
@@ -406,31 +447,35 @@ void clustodd(){
  int i,p,d,m,imf6,imf7;
  int im,imf0,imf1,imf2,imf3,imf4,imf5,fwd,bwd;
  int r1,r2,r3,l1,l2,l3,u1,u2,u3,d1,d2,d3;
- int cflag[VOL2];
+ int cflag[VOL];
  int bondflag;
+ int sx,sy,val;
  double ran[1];
  /* note that the variables ising[VOL2+i] with i in [0,VOL2-1] are the */
  /* ones that carry the flag for the reference configurations          */
- /* reference configuration flags are 1 */
+ /* reference configuration flags are 2 */
+ /* if there is no ref config, then ising[i] is set to zero */
  for(i=VOL2;i<VOL;i++){
   if((ising[neigh[2][i]]==ising[neigh[3][i]])&&
      (ising[neigh[4][i]]==ising[neigh[1][i]])&&
-     (ising[neigh[1][i]]!=ising[neigh[2][i]])) ising[i]=1;
+     (ising[neigh[1][i]]!=ising[neigh[2][i]])) ising[i]=2;
   else ising[i]=0;
  } 
 
  /* mark spins on odd time slices for growing clusters */
  /* spins on even-time slices are marked as 0; so that it will never join to a cluster */
  for(p=0;p<VOL2;p++) {
-  if(itc[p]%2==0) cflag[p]=0;
-  if(itc[p]%2==1) cflag[p]=1;
+  if((itc[p]%2)==0) cflag[p]=0;
+  if((itc[p]%2)==1) cflag[p]=1;
  }
+ /* serve as flags for joining spins on the same time-slice */
+ for(p=VOL2;p<VOL;p++) cflag[p]=1;
 
  /* select a starting site on an odd time-slice for growing cluster */
  do{
  ranlxd(ran,1);
  p=VOL2*ran[0]; }
- while((itc[p]%2==0));
+ while((itc[p]%2)==0);
  if(p>=VOL2) {printf("Wrong choice for odd. %d. Exiting. \n",p); exit(0); }
 
  /* check pointer */
@@ -443,105 +488,134 @@ void clustodd(){
     /* remember that you are on odd time-slice t*/
     imf0=neigh[5][im];
     imf1=neigh[5][imf0];
-    if((imf0<VOL2)&&(imf1>=VOL2)) printf("ERROR. %d %d %d\n",im,imf0,imf1);
-    if(ising[imf0]==1) {
-     ranlxd(ran,1); if(ran[0] < p1) bondflag=1; else bondflag=0; }
-    else if(ising[imf0]==0) bondflag=1; 
-    if((bondflag)&&(cflag[imf1]==1)){
-     i++; list[i]=imf1; /* increase list*/
-     cflag[imf1]=0;  /* unmark spins belonging to cluster */ }
-     /* ============================================== */
-     /* Also check if the spin in time-slice t-2 wants to bind */
-     imf6=neigh[0][im];
-     imf7=neigh[0][imf6];
-    if((imf6<VOL2)&&(imf7>=VOL2)) printf("ERROR. %d %d %d\n",im,imf6,imf7);
-    if(ising[imf6]==1){
-      ranlxd(ran,1); if(ran[0] < p1) bondflag=1; else bondflag=0; }
-    else if(ising[imf6]==0) bondflag=1; 
-    if((bondflag)&&(cflag[imf7]==1)){
-     i++; list[i]=imf7; /* increase list*/
-     cflag[imf7]=0;  /* unmark spins belonging to cluster */ }
-     /* ============================================== */
-     /* Next check if other spins in the time-slice t want to bind */
-     /* To see if the spins to the right-side of p want to bind */
-     imf2=neigh[1][im];
-     fwd=neigh[0][imf2]; bwd=neigh[5][imf2];
-     if(ising[fwd]!=ising[bwd]) bondflag=1;
-     else { ranlxd(ran,1); if(ran[0] < p2) bondflag=1; else bondflag=0; }
-     r1=neigh[1][imf2];  /* x   r2     x */
-     r2=neigh[2][imf2];  /* im imf2   r1 */
-     r3=neigh[4][imf2];  /* x   r3     x */
-     if((bondflag)&&(cflag[r1]==1)){
-     i++; list[i]=r1; /* increase list*/
-     cflag[r1]=0;  /* unmark spins belonging to cluster */ }
-     if((bondflag)&&(cflag[r2]==1)){
-     i++; list[i]=r2; /* increase list*/
-     cflag[r2]=0;  /* unmark spins belonging to cluster */ }
-     if((bondflag)&&(cflag[r3]==1)){
-     i++; list[i]=r3; /* increase list*/
-     cflag[r3]=0;  /* unmark spins belonging to cluster */ }
-     /* ============================================== */
-     /* To see if the spins to the left-side of p want to bind */
-     imf3=neigh[3][im];
-     fwd=neigh[0][imf3]; bwd=neigh[5][imf3];
-     if(ising[fwd]!=ising[bwd]) bondflag=1;
-     else { ranlxd(ran,1); if(ran[0] < p2) bondflag=1; else bondflag=0; }
-     l1=neigh[2][imf3];  /* x   l1    x */
-     l2=neigh[3][imf3];  /* l2 imf3  im */
-     l3=neigh[4][imf3];  /* x   l3    x */
-     if((bondflag)&&(cflag[l1]==1)){
-     i++; list[i]=l1; /* increase list*/
-     cflag[l1]=0;  /* unmark spins belonging to cluster */ }
-     if((bondflag)&&(cflag[l2]==1)){
-     i++; list[i]=l2; /* increase list*/
-     cflag[l2]=0;  /* unmark spins belonging to cluster */ }
-     if((bondflag)&&(cflag[l3]==1)){
-     i++; list[i]=l3; /* increase list*/
-     cflag[l3]=0;  /* unmark spins belonging to cluster */ }
+    if(cflag[imf0]==1){
+      bondflag=0;
+      if(ising[imf0]==2) { ranlxd(ran,1); if(ran[0] < p1) bondflag=1; }
+      else if(ising[imf0]==0) bondflag=1; 
+      if((bondflag)&&(cflag[imf1]==1)){
+      i++; list[i]=imf1; /* increase list*/
+      cflag[imf1]=0;  /* unmark spins belonging to cluster */ }
+    cflag[imf0]=0; /* unmark the interaction */
+    }
+    /* ============================================== */
+    /* Also check if the spin in time-slice t-2 wants to bind */
+    imf6=neigh[0][im];
+    imf7=neigh[0][imf6];
+    if(cflag[imf6]==1){
+      bondflag=0;
+      if(ising[imf6]==2){ ranlxd(ran,1); if(ran[0] < p1) bondflag=1; }
+      else if(ising[imf6]==0) bondflag=1; 
+      if((bondflag)&&(cflag[imf7]==1)){
+      i++; list[i]=imf7; /* increase list*/
+      cflag[imf7]=0;  /* unmark spins belonging to cluster */ }
+      cflag[imf6]=0;  /* unmark the interaction */
+    }
+    /* ============================================== */
+    /* Next check if other spins in the time-slice t want to bind */
+    /* To see if the spins to the right-side of p want to bind */
+    imf2=neigh[1][im];
+    if(cflag[imf2]==1){
+      fwd=neigh[0][imf2]; bwd=neigh[5][imf2];
+      bondflag=0;
+      if(ising[fwd]!=ising[bwd]) bondflag=1;
+      else { if(ising[imf2]==2) { ranlxd(ran,1); if(ran[0] < p2) bondflag=1;}}
+      r1=neigh[1][imf2];  /* x   r2     x */
+      r2=neigh[2][imf2];  /* im imf2   r1 */
+      r3=neigh[4][imf2];  /* x   r3     x */
+      if((bondflag)&&(cflag[r1]==1)){
+       i++; list[i]=r1; /* increase list*/
+       cflag[r1]=0;  /* unmark spins belonging to cluster */ }
+      if((bondflag)&&(cflag[r2]==1)){
+       i++; list[i]=r2; /* increase list*/
+       cflag[r2]=0;  /* unmark spins belonging to cluster */ }
+      if((bondflag)&&(cflag[r3]==1)){
+       i++; list[i]=r3; /* increase list*/
+       cflag[r3]=0;  /* unmark spins belonging to cluster */ }
+      cflag[imf2]=0; /* unmark the interaction */
+    }
+    /* ============================================== */
+    /* To see if the spins to the left-side of p want to bind */
+    imf3=neigh[3][im];
+    if(cflag[imf3]==1){
+      fwd=neigh[0][imf3]; bwd=neigh[5][imf3];
+      bondflag=0;
+      if(ising[fwd]!=ising[bwd]) bondflag=1;
+      else { if(ising[imf3]==2) { ranlxd(ran,1); if(ran[0] < p2) bondflag=1;}}
+      l1=neigh[2][imf3];  /* x   l1    x */
+      l2=neigh[3][imf3];  /* l2 imf3  im */
+      l3=neigh[4][imf3];  /* x   l3    x */
+      if((bondflag)&&(cflag[l1]==1)){
+       i++; list[i]=l1; /* increase list*/
+       cflag[l1]=0;  /* unmark spins belonging to cluster */ }
+      if((bondflag)&&(cflag[l2]==1)){
+       i++; list[i]=l2; /* increase list*/
+       cflag[l2]=0;  /* unmark spins belonging to cluster */ }
+      if((bondflag)&&(cflag[l3]==1)){
+       i++; list[i]=l3; /* increase list*/
+       cflag[l3]=0;  /* unmark spins belonging to cluster */ }
+      cflag[imf3]=0; /* unmark the interaction */
+     }
      /* ============================================== */
      /* To see if the spins to the top of p want to bind */
      imf4=neigh[2][im];
-     fwd=neigh[0][imf4]; bwd=neigh[5][imf4];
-     if(ising[fwd]!=ising[bwd]) bondflag=1;
-     else { ranlxd(ran,1); if(ran[0] < p2) bondflag=1; else bondflag=0; }
-     u1=neigh[1][imf4];  /* x   u2    x */
-     u2=neigh[2][imf4];  /* u3 imf4  u1 */
-     u3=neigh[3][imf4];  /* x   im    x */
-     if((bondflag)&&(cflag[u1]==1)){
-     i++; list[i]=u1; /* increase list*/
-     cflag[u1]=0;  /* unmark spins belonging to cluster */ }
-     if((bondflag)&&(cflag[u2]==1)){
-     i++; list[i]=u2; /* increase list*/
-     cflag[u2]=0;  /* unmark spins belonging to cluster */ }
-     if((bondflag)&&(cflag[u3]==1)){
-     i++; list[i]=u3; /* increase list*/
-     cflag[u3]=0;  /* unmark spins belonging to cluster */ }
+     if(cflag[imf4]==1){
+       fwd=neigh[0][imf4]; bwd=neigh[5][imf4];
+       bondflag=0;
+       if(ising[fwd]!=ising[bwd]) bondflag=1;
+       else { if(ising[imf4]==2) { ranlxd(ran,1); if(ran[0] < p2) bondflag=1;}}
+       u1=neigh[1][imf4];  /* x   u2    x */
+       u2=neigh[2][imf4];  /* u3 imf4  u1 */
+       u3=neigh[3][imf4];  /* x   im    x */
+       if((bondflag)&&(cflag[u1]==1)){
+        i++; list[i]=u1; /* increase list*/
+        cflag[u1]=0;  /* unmark spins belonging to cluster */ }
+       if((bondflag)&&(cflag[u2]==1)){
+        i++; list[i]=u2; /* increase list*/
+        cflag[u2]=0;  /* unmark spins belonging to cluster */ }
+       if((bondflag)&&(cflag[u3]==1)){
+        i++; list[i]=u3; /* increase list*/
+        cflag[u3]=0;  /* unmark spins belonging to cluster */ }
+       cflag[imf4]=0; /* unmark the interaction */
+     }
      /* ============================================== */
      /* To see if the spins to the down of p want to bind */
      imf5=neigh[4][im];
-     fwd=neigh[0][imf5]; bwd=neigh[5][imf5];
-     if(ising[fwd]!=ising[bwd]) bondflag=1;
-     else { ranlxd(ran,1); if(ran[0] < p2) bondflag=1; else bondflag=0; }
-     d1=neigh[1][imf5];  /* x   im    x */
-     d2=neigh[3][imf5];  /* d2 imf5  d1 */
-     d3=neigh[4][imf5];  /* x   d3    x */
-     if((bondflag)&&(cflag[d1]==1)){
-     i++; list[i]=d1; /* increase list*/
-     cflag[d1]=0;  /* unmark spins belonging to cluster */ }
-     if((bondflag)&&(cflag[d2]==1)){
-     i++; list[i]=d2; /* increase list*/
-     cflag[d2]=0;  /* unmark spins belonging to cluster */ }
-     if((bondflag)&&(cflag[d3]==1)){
-     i++; list[i]=d3; /* increase list*/
-     cflag[d3]=0;  /* unmark spins belonging to cluster */ }
+     if(cflag[imf5]==1){
+       fwd=neigh[0][imf5]; bwd=neigh[5][imf5];
+       bondflag=0;
+       if(ising[fwd]!=ising[bwd]) bondflag=1;
+       else { if(ising[imf5]==2) { ranlxd(ran,1); if(ran[0] < p2) bondflag=1;}}
+       d1=neigh[1][imf5];  /* x   im    x */
+       d2=neigh[3][imf5];  /* d2 imf5  d1 */
+       d3=neigh[4][imf5];  /* x   d3    x */
+       if((bondflag)&&(cflag[d1]==1)){
+        i++; list[i]=d1; /* increase list*/
+        cflag[d1]=0;  /* unmark spins belonging to cluster */ }
+       if((bondflag)&&(cflag[d2]==1)){
+        i++; list[i]=d2; /* increase list*/
+        cflag[d2]=0;  /* unmark spins belonging to cluster */ }
+       if((bondflag)&&(cflag[d3]==1)){
+        i++; list[i]=d3; /* increase list*/
+        cflag[d3]=0;  /* unmark spins belonging to cluster */ }
+       cflag[imf5]=0; /* unmark the interaction */
+     }
      m++;
    } while(m<=i);
    /* check if the list only contains genuine spins */
    for(d=0;d<=i;d++) if(list[d]>=VOL2) printf("Cluster grown in Flag.\n");
+   /* decide orientation wrt to the reference config */
+   sx=ixc[list[0]]; sy=iyc[list[0]];
+   val=(sx-sy)%4;
+   if((val==-1)||(val==3)) refB=-1;
+   else refB=1;
+   if(ising[list[0]]==refB) refB=1;
+   else refB=-1;
+
 
    /* flip the cluster */
     for(d=0;d<=i;d++) ising[list[d]] = -ising[list[d]];
 
    /* size of the cluster on odd-sublattice */
     clusodd = i+1;
+    mB = refB*clusodd;
 }
