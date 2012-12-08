@@ -72,7 +72,13 @@ int main(){
    readval = fscanf(fptr,"%s %lf\n",st,&lam);
    if(readval == -1) printf("Error\n");
    fclose(fptr);
+  
+  printf("Multi-Cluster Algorithm for the U(1) quantum link model\n");
+  printf("Nx=%d, Ny=%d, Nt=%d\n",LX,LY,LT);
+  printf("beta=%2.4f; J=%2.3f; lam=%2.3f\n",beta,j,lam);
+  printf("Starting seed=%d\n",SEED);
 
+   LT  = 2*LT; /* the dof are spread over twice actual length */
    VOL = LX*LY*LT;
    VOL2= VOL/2;
    VOL4= VOL/4;
@@ -97,17 +103,14 @@ int main(){
   neighbours();
   //neighchk();
 
-  printf("Cluster Algorithm for the U(1) quantum link model\n");
-  printf("Nx=%d, Ny=%d, Nt=%d\n",LX,LY,LT);
-  printf("beta=%2.4f; J=%2.3f; lam=%2.3f\n",beta,j,lam);
-  printf("Starting seed=%d\n",SEED);
 
   /* Define the probabilities */
   double x,coshx,sinhx;
   x     = eps*j;
   coshx = (exp(x)+exp(-x))/2.0;
   sinhx = (exp(x)-exp(-x))/2.0;
-  p1    = exp(-2*x);
+//  p1    = exp(-2*x);
+  p1    = exp(-x)/coshx;
   p2    = 1.0 - exp(eps*lam)/coshx;
   printf("Prob p1: %f;  Prob p2: %f\n",p1,p2);
 
@@ -134,7 +137,8 @@ int main(){
    nclusodsq = nclusodsq/VOL4;
    nclus = nclusevn + nclusodd;
    chkconf();
-   fprintf(fptr,"%d %d %d %lf %lf %d %d\n",nclusevn,nclusodd,nclus,nclusevsq,nclusodsq,mA,mB);
+   //fprintf(fptr,"%d %d %d %lf %lf %d %d\n",nclusevn,nclusodd,nclus,nclusevsq,nclusodsq,mA,mB);
+   fprintf(fptr,"%e %e\n",(double)mA,(double)mB);
   }
   fclose(fptr);
 
@@ -317,7 +321,8 @@ void clusteven(){
     imf1=neigh[5][imf0];
     if(cflag[imf0]==1){
       bondflag=0;
-      if(ising[imf0]==2) { ranlxd(ran,1); if(ran[0] < p1) bondflag=1; }
+//    if(ising[imf0]==2) { ranlxd(ran,1); if(ran[0] < p1) bondflag=1; }
+    if((ising[imf0]==2)&&(ising[im]==ising[imf1])) { ranlxd(ran,1); if(ran[0] < p1) bondflag=1; }
     else if(ising[imf0]==0) bondflag=1; 
     if((bondflag)&&(cflag[imf1]==1)){
      i++; list[i]=imf1; /* increase list*/
@@ -330,7 +335,8 @@ void clusteven(){
    imf7=neigh[0][imf6];
    if(cflag[imf6]==1){
     bondflag=0;
-    if(ising[imf6]==2){ ranlxd(ran,1); if(ran[0] < p1) bondflag=1; }
+//  if(ising[imf6]==2){ ranlxd(ran,1); if(ran[0] < p1) bondflag=1; }
+    if((ising[imf6]==2)&&(ising[im]==ising[imf7])) { ranlxd(ran,1); if(ran[0] < p1) bondflag=1; }
     else if(ising[imf6]==0) bondflag=1; 
     if((bondflag)&&(cflag[imf7]==1)){
      i++; list[i]=imf7; /* increase list*/
@@ -547,7 +553,8 @@ void clustodd(){
     imf1=neigh[5][imf0];
     if(cflag[imf0]==1) {
       bondflag=0;
-      if(ising[imf0]==2) {ranlxd(ran,1); if(ran[0] < p1) bondflag=1; }
+//   if(ising[imf0]==2) {ranlxd(ran,1); if(ran[0] < p1) bondflag=1; }
+    if((ising[imf0]==2)&&(ising[im]==ising[imf1])) { ranlxd(ran,1); if(ran[0] < p1) bondflag=1; }
       else if(ising[imf0]==0) bondflag=1; 
       if((bondflag)&&(cflag[imf1]==1)){
       i++; list[i]=imf1; /* increase list*/
@@ -560,7 +567,8 @@ void clustodd(){
    imf7=neigh[0][imf6];
    if(cflag[imf6]==1){
      bondflag=0;
-     if(ising[imf6]==2){ ranlxd(ran,1); if(ran[0] < p1) bondflag=1; }
+//  if(ising[imf6]==2){ ranlxd(ran,1); if(ran[0] < p1) bondflag=1; }
+    if((ising[imf6]==2)&&(ising[im]==ising[imf7])) { ranlxd(ran,1); if(ran[0] < p1) bondflag=1; }
      else if(ising[imf6]==0) bondflag=1; 
      if((bondflag)&&(cflag[imf7]==1)){
       i++; list[i]=imf7; /* increase list*/
