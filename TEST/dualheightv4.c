@@ -65,6 +65,8 @@ double *avflx3,*avfly3,*avflx4,*avfly4;
 float glchk1,glchk2;
 /* measure of "a energy density" */
 double eden; 
+double *peavg,*keavg;
+double *pe,*ke;
 
 
 int main(){
@@ -165,6 +167,10 @@ int main(){
    avflx4= (double *)malloc(SPV*sizeof(double));
    avfly4= (double *)malloc(SPV*sizeof(double));
    chptr = (int *)malloc(VOL2*sizeof(double)); 
+   peavg = (double *)malloc(SPV*sizeof(double));
+   keavg = (double *)malloc(SPV*sizeof(double));
+   pe    = (double *)malloc(SPV*sizeof(double));
+   ke    = (double *)malloc(SPV*sizeof(double));
    /* MA and MB will be measured for each of the LT/2 timeslices and avg-d */
    MA    = (int *)malloc((LT2)*sizeof(int));
    MB    = (int *)malloc((LT2)*sizeof(int));
@@ -221,9 +227,11 @@ int main(){
        }
   }
 
-  /* initialize average flux variable */
-  for(i=0;i<SPV;i++) 
+  /* initialize average flux variable and local energy density variable */
+  for(i=0;i<SPV;i++){
   avflx1[i]=avfly1[i]=avflx2[i]=avflx2[i]=avflx3[i]=avfly3[i]=avflx4[i]=avfly4[i]=0.0;
+  peavg[i]=keavg[i]=0.0;
+  }
 
   /* update */
   thermflag=1;
@@ -237,7 +245,6 @@ int main(){
   thermflag=0;
   /* measure */
   flxcnt1=flxcnt2=flxcnt3=flxcnt4=0;
-  for(i=0;i<SIZE;i++) for(j=0;j<SIZE;j++) pMAB[i][j]=0.0;
   fptr=fopen("multi.dat","w");
   for(i=0;i<imeas;i++){
      nclusevn = 0; nclusevsq=0; mA=0; 
@@ -258,6 +265,7 @@ int main(){
   fclose(fptr);
 
   /* normalize and print histogram */
+/*
   norm=0.0;
   for(i=0;i<SIZE;i++) for(j=0;j<SIZE;j++) norm += pMAB[i][j];
   fptr=fopen("magdist.dat","w");
@@ -267,7 +275,7 @@ int main(){
    fprintf(fptr,"%d %d %le\n",i,j,pMAB[i][j]);}
   fprintf(fptr,"\n");}
   fclose(fptr);
-
+*/
   /* average and normalize the flux profile and print it */
   printf("flux in bulk: %d + %d = %d\n",flxcnt1,flxcnt2,flxcnt1+flxcnt2);
   printf("# meas: %d + %d + %d = %d\n",flxcnt1+flxcnt2,flxcnt3,flxcnt4,
@@ -316,6 +324,18 @@ int main(){
   }
   fclose(fptr);
 
+  /* print the local energy density */
+  fptr=fopen("eden.dat","w");
+  for(iy=0;iy<LY;iy++){
+  for(ix=0;ix<LX;ix++){
+    i=iy*LX+ix;
+    peavg[i]=peavg[i]/((double)(imeas));
+    keavg[i]=keavg[i]/((double)(imeas));
+    fprintf(fptr,"%d %d %le %le\n",ix,iy,peavg[i],keavg[i]);
+  }
+  fprintf(fptr,"\n");
+  }
+  fclose(fptr);
 
 
  /* check flux carried by average flux profile */
@@ -360,6 +380,8 @@ int main(){
   free(avflx3); free(avfly3);
   free(avflx4); free(avfly4);
   free(chptr); 
+  free(peavg); free(keavg);
+  free(pe); free(ke);
   for(i=0;i<NNBR;i++) free(neigh[i]);
   for(i=0;i<2*DIM+1;i++) free(next[i]);
   deallocatedouble2d(pMAB,SIZE,SIZE);
@@ -1307,18 +1329,36 @@ void constflux(){
 
  void energy(){
   int p,imf,imb;
+  int n;
+  double chkpe,chkke;
   inten=intpe=0.0;
+  for(n=0;n<SPV;n++) pe[n]=ke[n]=0.0;
   /* go over all the interactions */
   for(p=VOL2;p<VOL;p++){
      if(ising[p]==2){
        intpe--;
        imf=neigh[5][p]; imb=neigh[0][p];
-       if(ising[imf]==ising[imb]) inten += -lam + tanhx;
-       else if(ising[imf]!=ising[imb]) inten += -lam + cothx;
+       n = iyc[p]*LX + ixc[p];
+       pe[n] += -lam; 
+       if(ising[imf]==ising[imb]){
+            inten += -lam + tanhx;
+            ke[n] += tanhx; }
+       else if(ising[imf]!=ising[imb]){
+            inten += -lam + cothx;
+            ke[n] += cothx; }
      }
   }
   inten = -inten/((double)(LT2)); 
   intpe = -intpe/((double)(LT2)); 
+  chkpe=chkke=0.0;
+  for(n=0;n<SPV;n++){
+     pe[n]    = -pe[n]/((double)(LT2));
+     ke[n]    = -ke[n]/((double)(LT2));
+     peavg[n]+=  pe[n];
+     keavg[n]+=  ke[n];
+     chkpe += pe[n]; chkke += ke[n];
+  }
+  //printf("%le %le\n",chkpe,chkke);
  }
 
  /* This routine provides an initial height configuration corresponding to */
